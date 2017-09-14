@@ -8,6 +8,13 @@ To create a new Network on your localhost, port 4444, that uses autoPolling
 myNetwork = Network("localhost", 4444, autoPolling=True)
 ```
 
+## Tests
+This project intends to include good unittest coverage. At the moment, there are basically no tests, and they are difficult to run. To run what we have so far execute the following in the project root directory.
+```
+python -m unittest tests.networkTests
+```
+
+
 ## API Reference
 ###The Network class
 
