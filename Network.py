@@ -26,15 +26,14 @@ class Network(object):
 		self.box = []
 
 		# Setup the server socket for incoming connections
-		serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		serverSocket.bind((self.ip, self.port))
-		serverSocket.listen(0)
-		self.server = serverSocket
+		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.server.bind((self.ip, self.port))
+		self.server.listen(0)
 
 		# Start the autoPolling if appropriate
 		if self.autoPoll:
 			Timer(1, self.autoAcceptor).start()
-			Timer(1, self.autoAcceptor).start()
+			Timer(1, self.autoReceiver).start()
 
 
 	def alertOrStore(self, message, peer = None):
@@ -89,19 +88,19 @@ class Network(object):
 		where messages they attempt to send are not deserialized, and any messages sent by the
 		user will not be forwarded to them
 		"""
+
 		clientSocket, clientAddress = self.server.accept()
 		thisPeer = Peer(clientAddress[0],Socket = clientSocket)
 		if thisPeer not in self.unconfirmedList:
 			self.unconfirmedList.append(thisPeer)
 
 		# Queue the next autoAcceptor
-		print("about the reschedule")
 		if self.autoPoll:
 			Timer(1, self.autoAcceptor).start()
 
 	def approve(self, peer):
 		"""
-		Moves a peer that has attempted to connect to this network instance from the
+		Moves a peer that has attempted to connect to this network from the
 		unconfirmedList to peerList, where messages can be sent and received
 		"""
 
