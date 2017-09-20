@@ -36,20 +36,13 @@ class Network(object):
 			Timer(1, self.autoReceiver).start()
 
 
-	def alertOrStore(self, message, peer = None):
-		""" Would be easier if we had a full xml setup, but currently just going to pass
-		it as message and peers, when we get the xml finished I'll update it.
-
-		alertOrStore is a wrapper that either sends the message to an interface, or if an
-		interface is not available stores the message contents in box
+	def alert(self, message):
+		"""
+		Alerts all known alerters with the given incoming message.
 		"""
 
-		if self.alerter is None:
-			if peer is None:
-				box.append(message)
-			else:
-				box.append((message,peer))
-		self.alerter(message,peer)
+		for alerter in self.alerters:
+			alerter(message)
 
 
 	def sender(self, sendMessage):
@@ -72,13 +65,13 @@ class Network(object):
 			sock.connect((ip, port))
 
 		except socket.error:
-			self.alertOrStore("Alert: could not connect to peer: ({0}, {1!s}".format(ip,port))
+			#self.alertOrStore("Alert: could not connect to peer: ({0}, {1!s}".format(ip,port))
 
 		finally:
 			newPeer = Peer(ip, port)
 			self.peerList.append(newPeer)
 			newPeer.addSock(sock)
-			self.alertOrStore(str(newPeer) + " connected.")
+			#self.alertOrStore(str(newPeer) + " connected.")
 			newPeer.send(self.port)
 
 
@@ -124,7 +117,7 @@ class Network(object):
 				messageStr = []
 				for peers in message:
 					messageStr.append(str(peers))
-				self.alertOrStore("received peerlist: " + str(messageStr),peer = peers)
+				#self.alertOrStore("received peerlist: " + str(messageStr),peer = peers)
 			###########################################################
 
 			else:
@@ -133,9 +126,10 @@ class Network(object):
 						if str(message) == "/exit":
 							peers.Sock = None
 							peers.hasSock = None
-							self.alertOrStore(str(peers) + " exited.")
+							#self.alertOrStore(str(peers) + " exited.")
 						else:
-							self.alertOrStore(str(message),peer = peers)
+							self.alert(message)
+							self.box.append(message)
 
 		# Queue the next autoReceiver
 		if self.autoPoll:
