@@ -5,9 +5,9 @@ class Message:
     A message ton be sent on the network.
     """
 
-    def __init__(self, sender, recipient):
+    def __init__(self, sender):
         """
-        Every Message must have a sender and an intended recipient. Typically a
+        Every Message must have a sender but recipient is optional. Typically a
         message will be sent to everyone given the P2P nature of Network, but it
         is good to at least indicate who the intended recipient is.
 
@@ -19,7 +19,7 @@ class Message:
         """
 
         self.sender = sender
-        self.recipient = recipient
+        self.recipient = None
         self.peers = []    # No peers given by default.
         self.contents = ""  # No contents by default.
 
@@ -36,15 +36,16 @@ class Message:
 
         # Sender
         sendElem = root.subElement('sender')
+        sendElem.text = self.sender
 
         # Recipient
         recipElem = root.subElement('recipient')
+        recipElem.text = self.recipient.id
 
         # Peer list
         peersElem = root.subElement('peers')
         for peer in self.peers:
             currentPeerElem = peersElem.subElement('peer')
-            # repr gives technical details, str is human-readable
             currentPeerElem.text = repr(peer)
 
 
@@ -54,4 +55,16 @@ class Message:
         contentElem = root.subelement('contents')
         contentElem.text = self.contents
 
-        return ET.sump(root)
+        return ET.dump(root)
+
+def message_from_xml(xml):
+    """
+    Builds a message object from the supplied XML. The XML string likely came
+    from a another Peer on the network.
+    """
+
+    root = ET.fromstring(xml)
+
+    m = Message(root.)
+
+    #TODO finish writing this

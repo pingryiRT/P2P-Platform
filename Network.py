@@ -1,7 +1,8 @@
 import socket
 import pickle #TODO get rid of this once we have a proper XML scheme
 import select
-from threading import Timer
+from threading import Thread, Timer
+from random import randint
 
 from Peer import Peer
 
@@ -17,41 +18,76 @@ class Network(object):
 	def __init__(self, ip, port, autoPoll = True):
 
 		# Initialize attributes
-		self.unconfirmedList = []
-		self.peerList = []
 		self.autoPoll = autoPoll
 		self.ip = ip
 		self.port = port
+		self.id = hash(randint(0,100000)) #TODO Use keys for this!
+
+		# Keep track of other network users
+		self.unconfirmedList = []
+		self.peerList = []
+		self.acquantances = []
+
+		# Create infastructure for handling incoming messages
 		self.alerters = []
 		self.box = []
 
 		# Setup the server socket for incoming connections
 		self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.server.bind((self.ip, self.port))
-		self.server.listen(0)
+		self.server.listen(2) # 2 simultaneous connections in backlog
 
 		# Start the autoPolling if appropriate
 		if self.autoPoll:
-			Timer(1, self.autoAcceptor).start()
-			Timer(1, self.autoReceiver).start()
+			self.acceptorThread = Timer(1, self.autoAcceptor)
+			self.receiverThread = Thread(target = self.autoReceiver)
+			self.acceptorThread.start()
+			self.receiverThread.start()
+		else:
+			self.acceptorThread = None
+			self.receiverThread = None
+
 
 
 	def alert(self, message):
 		"""
-		Alerts all known alerters with the given incoming message.
+		Alerts all known alerters of the given incoming message.
+
+		Alerters should be callables that accept two arguments, the sender, a
+		Peer or None if the sender is not known, and the message contents.
 		"""
 
+		# Find the right peer
+		sender = None
+		for peer in self.peerList:
+
+
+
+		# Now alert everyone
 		for alerter in self.alerters:
-			alerter(message)
+			alerter(sender, message)
 
 
-	def sender(self, sendMessage):
+	def sender(self, contents, recipient = None):
 		"""
-		Sends message to all peers with a socket
+		Constructs a message with the given contents (and recipient if specified)
+		and broadcasts it to all peers with a socket.
+
+		If recipient is specifies, it should be a Peer object.
 		"""
-		for peers in list(self.peerList):
-			if peers.hasSock == True: # To me: don't you dare change this to if peers.hasSock: actually this one should work but still...
-				peers.send(sendMessage)
+
+		m = Message(self.id)
+		m.contents = contents
+		if recipient is not None:
+			m.recipient = recipient
+
+		for peer in list(self.peerList): # Makes a copy
+			if peer.socket is not None
+				try:
+					peer.send(message)
+				except:
+					self.peerList.remove(peer)
+					self.acquaintances.append(peer)
 
 
 	def connect(self, ip, port):
@@ -66,6 +102,7 @@ class Network(object):
 
 		except socket.error:
 			#self.alertOrStore("Alert: could not connect to peer: ({0}, {1!s}".format(ip,port))
+			pass
 
 		finally:
 			newPeer = Peer(ip, port)
@@ -89,7 +126,8 @@ class Network(object):
 
 		# Queue the next autoAcceptor
 		if self.autoPoll:
-			Timer(1, self.autoAcceptor).start()
+			self.acceptorThread = Thread(target = self.autoAcceptor)
+			self.acceptorThread.start()
 
 	def approve(self, peer):
 		"""
@@ -104,15 +142,22 @@ class Network(object):
 		"""
 		Goes through all peers, attempting to receive messages when sockets exist.
 		"""
-		sockList=[]
-		for peers in self.peerList:
-			if peers.hasSock == True:
-				sockList.append(peers.Sock)
+
+		# Figure out who we're receiving from
+		sockList = [p.socket for p in self.peerList]
 		receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],2)#kind of bad,
 			# but I don't currently need to check for writable/errors... if I need to I will later
 			# timeout is in 2 seconds
+
+		#TODO should we be moving peers with socket errors discovered here to the acquaintances list?
+
 		for sockets in receiveOpen:
-			message = pickle.loads(sockets.recv(1024)) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
+			rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
+			m = message_from_xml(rawXML)
+
+			#TODO Finish processing the message
+
+			'''
 			if type(message) is list:
 				messageStr = []
 				for peers in message:
@@ -130,16 +175,29 @@ class Network(object):
 						else:
 							self.alert(message)
 							self.box.append(message)
+			'''
 
 		# Queue the next autoReceiver
 		if self.autoPoll:
-			Timer(1, self.autoReceiver).start()
+			self.receiverThread = Timer(1, self.autoReceiver)
+			self.receiverThread.start()
 
 	def shutdown(self):
 		""" Gracefully closes down all sockets for this peer. """
 
-		self.autoPoll = False
+		#TODO Inform peers that we're shutting down
 
+		# Cancel all current and future autoPoll operations
+		self.autoPoll = False
+		if self.acceptorThread is not None:
+				self.acceptorThread.cancel()
+		if self.receiverThread is not None:
+				self.receiverThread.cancel()
+
+		# Colse our own server socket
+		self.server.close()
+
+		# Close all peer sockets
 		for peer in self.peerList:
 			if peer.hasSock:
 				peer.hasSock = False # Doing this before to try to prevent an error
