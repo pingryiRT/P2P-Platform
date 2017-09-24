@@ -65,6 +65,7 @@ class Network(object):
 			sock.connect((ip, port))
 
 		except socket.error:
+			pass
 			#self.alertOrStore("Alert: could not connect to peer: ({0}, {1!s}".format(ip,port))
 
 		finally:
