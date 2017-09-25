@@ -5,23 +5,23 @@ class Message:
     A message ton be sent on the network.
     """
 
-    def __init__(self, sender):
+    def __init__(self, sender = None):
         """
         Every Message must have a sender but recipient is optional. Typically a
         message will be sent to everyone given the P2P nature of Network, but it
         is good to at least indicate who the intended recipient is.
 
-        For now sender is just an arbitrary string that the sender should choose
-        to be fairly unique among his peers. It should eventually evolve into a
-        private key, or perhaps a Peer object that encapsulates said key.
-
-        Recipient should be a Peer object.
+        Sender and Recipient should be Peer objects.
         """
 
         self.sender = sender
         self.recipient = None
-        self.peers = []    # No peers given by default.
-        self.contents = ""  # No contents by default.
+        self.shuttingDown = False
+        self.requestPeers = False
+        self.peers = set()
+        self.contents = ""
+
+
 
     def toXML(self):
         """
@@ -36,7 +36,7 @@ class Message:
 
         # Sender
         sendElem = root.subElement('sender')
-        sendElem.text = self.sender
+        sendElem.text = self.sender.id
 
         # Recipient
         recipElem = root.subElement('recipient')
@@ -48,8 +48,7 @@ class Message:
             currentPeerElem = peersElem.subElement('peer')
             currentPeerElem.text = repr(peer)
 
-
-        # contents
+        # Contents
         #TODO Consider appending a given element (rather than just a plain string)
         # Can be done according to https://stackoverflow.com/a/4789163/4184410
         contentElem = root.subelement('contents')
@@ -57,14 +56,47 @@ class Message:
 
         return ET.dump(root)
 
+
+
 def message_from_xml(xml):
     """
-    Builds a message object from the supplied XML. The XML string likely came
+    Builds a Message object from the supplied XML. The XML string likely came
     from a another Peer on the network.
     """
 
+    #TODO Sanitize the XML string before constructing the Message
+
+    # Create the ETree and the Message
     root = ET.fromstring(xml)
+    m = Message()
 
-    m = Message(root.)
+    # Parse the sender (a Peer object)
+    sendElem = root.find('sender')
+    senderID = sendElem.text
+    senderIP = sendElem.get('ip')
+    senderPort = sendElem.get('port')
+    m.sender = Peer(senderID, senderIP, senderPort)
 
-    #TODO finish writing this
+    #TODO Validate signature once public key stuff is implemented
+
+    # Parse the recipient (a Peer object)
+    recipElem = root.find('recipient')
+    recipientID = recipElem.text
+    m.recipient = Peer(recipientID)
+
+    # Shutting down or requesting peers?
+    m.shuttingdown = root.find('shuttingdown') is not None
+    m.requestPeers = root.find('requestpeers') is not None
+
+    # Parse the attached list of peers
+    peersElem = root.find('peers')
+    for peerElem in root.peersElem.findall('peer'):
+        #TODO This is very bad and unsafe code. The Peer string needs to be sanitized first.
+        # This might be a starting place: http://lybniz2.sourceforge.net/safeeval.html
+        newPeer = eval(peerElem.text)
+        self.peers.add(newPeer)
+
+    # Fetch the primary contents
+    m.contents = root.find('contents').text
+
+    return m

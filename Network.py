@@ -76,7 +76,7 @@ class Network(object):
 		If recipient is specifies, it should be a Peer object.
 		"""
 
-		m = Message(self.id)
+		m = Message(Peer(self.id, self.ip, self.port))
 		m.contents = contents
 		if recipient is not None:
 			m.recipient = recipient
