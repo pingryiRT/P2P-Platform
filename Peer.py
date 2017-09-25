@@ -29,7 +29,7 @@ class Peer(object):
 		Returns a string that evaluates to this Peer.
 		"""
 
-		text = "Peer({}, {}, {})".format(self.id, self.ip, self.port)
+		text = "Peer('{}', '{}', {})".format(self.id, self.ip, self.port)
 		return text
 
 
@@ -46,7 +46,7 @@ class Peer(object):
 
 	def __eq__(self, other):
 		"""
-		Compares this peer to another peer for equality. (for == operator)
+		Compares this Peer to another for equality. (for == operator)
 
 		Other can be either the other peer object or the string representation
 		of that peer object.
@@ -59,11 +59,11 @@ class Peer(object):
 
 		if isinstance(other, Peer):
 
-			if self.id is not None and other.ID is not None:
-				return self.id == other.
+			if self.id is not None and other.id is not None:
+				return self.id == other.id
 
 			# If either peer doesn't have an ID, fall back to port and ip
-			return self.ip == other.IP and self.port == other.port
+			return self.ip == other.ip and self.port == other.port
 
 		# repr support
 		else:
@@ -81,31 +81,31 @@ class Peer(object):
 		"""
 
 		if self.socket is None:
-			raise Exception("Cannot send message to peer without socket.")
+			raise Exception("Cannot send to peer without socket.")
 
 		try:
 			self.socket.send(message.toXML())
 
+		#TODO Is this really the Peer's own job, or should network take care of it.
 		except socket.error as e:
 			self.socket = None
 			raise e # Let the error propagate up to the caller so
 					# its records can be updated
+
 
 	def receive(self):
 		"""
 		Receive a message from this peer and return it.
 		"""
 
-		if self.hasSock==True:
-			try:
-				message = self.socket.recv(1024)
-			except socket.error:
-				print("error receiving message from " + str((self.IP,self.port)))
+		#TODO Should this return a Message object?
+
+		if self.socket is None:
+			raise Exception("Cannot receive from peer without socket")
+
+		try:
+			message = self.socket.recv(1024)
+		except socket.error:
+			raise Exception("error receiving message from " + str((self.IP,self.port)))
 
 		return message
-
-
-	def addSock(self, Socket):
-		""" Add a socket to the peer. """
-		self.socket = Socket
-		self.hasSock = True
