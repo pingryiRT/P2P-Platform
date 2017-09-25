@@ -1,5 +1,4 @@
 import socket
-import pickle #TODO get rid of this once we have a proper XML scheme
 import select
 from threading import Thread, Timer
 from random import randint
@@ -26,7 +25,6 @@ class Network(object):
 		# Keep track of other network users
 		self.unconfirmedList = []
 		self.peerList = []
-		self.acquantances = []
 
 		# Create infastructure for handling incoming messages
 		self.alerters = []
@@ -49,23 +47,19 @@ class Network(object):
 
 
 
-	def alert(self, message):
+	def alert(self, news):
 		"""
-		Alerts all known alerters of the given incoming message.
+		Alerts all known alerters (single-argument callables) of something
+		happening in the underlying Network.
 
-		Alerters should be callables that accept two arguments, the sender, a
-		Peer or None if the sender is not known, and the message contents.
+		The argument will either be a Message object received from a Peer on the
+		Network, or a string motifying the alerter of a Network status update.
+
+		(In the future we may want better structure to the status alerts. #TODO)
 		"""
 
-		# Find the right peer
-		sender = None
-		for peer in self.peerList:
-
-
-
-		# Now alert everyone
 		for alerter in self.alerters:
-			alerter(sender, message)
+			alerter(news)
 
 
 	def sender(self, contents, recipient = None):
@@ -73,16 +67,17 @@ class Network(object):
 		Constructs a message with the given contents (and recipient if specified)
 		and broadcasts it to all peers with a socket.
 
-		If recipient is specifies, it should be a Peer object.
+		If recipient is specified, it should be a Peer object. If it is None,
+		the message is considered a public broadcast.
 		"""
 
-		m = Message(Peer(self.id, self.ip, self.port))
+		me = Peer(self.id, self.ip, self.port)
+		m = Message(me)
 		m.contents = contents
-		if recipient is not None:
-			m.recipient = recipient
+		m.recipient = recipient
 
 		for peer in list(self.peerList): # Makes a copy
-			if peer.socket is not None
+			if peer.socket is not None:
 				try:
 					peer.send(message)
 				except:
@@ -92,22 +87,37 @@ class Network(object):
 
 	def connect(self, ip, port):
 		"""
-		Initializes a connection with a socket to a given ip and port, and then creates a
-		new peer object, appends it to the peerList, and adds that socket to the new peer
+		Initializes a socket connection to a server known only by ip and port.
+		Primarily useful for connecting to the first known Peer.
+		"""
+
+		newPeer = Peer(None, ip, port)
+
+		#TODO Check whether we're already connected to this Peer
+
+		#TODO Check whether this peer is already trying to connect to us
+
+		# Make the actual connection
+		connectTo(newPeer)
+		
+		# Give the caller a reference to the Peer we just created
+		return newPeer
+
+
+	def connectTo(self, peer):
+		"""
+		Initializes a socket connection to a Peer object.
 		"""
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			sock.connect((ip, port))
-
+			sock.connect((ip, port)) ### Is this a blocking call?
 		except socket.error:
-			#self.alertOrStore("Alert: could not connect to peer: ({0}, {1!s}".format(ip,port))
-			pass
+			alert("Failed to connect to {}".format(peer))
 
 		finally:
-			newPeer = Peer(ip, port)
 			self.peerList.append(newPeer)
-			newPeer.addSock(sock)
+			newPeer.socket = sock
 			#self.alertOrStore(str(newPeer) + " connected.")
 			newPeer.send(self.port)
 
@@ -155,7 +165,19 @@ class Network(object):
 			rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
 			m = message_from_xml(rawXML)
 
-			#TODO Finish processing the message
+			#TODO If sender is shutting down, disconnect, say goodbye, etc
+
+			#TODO If sender is requesting Peers, send some
+
+			# If we want more peers, connect to some
+			#TODO ATM we're connecting to every peer we know of. That will make a lot of connections.
+			for peer in m.peers:
+				if peer not in peerList and peer not in unconfirmedList:
+
+
+			# Alert the application to the new message
+			alert(message)
+
 
 			'''
 			if type(message) is list:
