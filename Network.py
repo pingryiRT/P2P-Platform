@@ -59,8 +59,8 @@ class Network(object):
 		"""
 
 		for alerter in self.alerters:
-            # Start each alerter on its own thread in case a thread is long-running
-            Thread(target = alerter, args = (news,)).start()
+			# Start each alerter on its own thread in case a thread is long-running
+			Thread(target = alerter, args = (news,)).start()
 
 
 
@@ -175,7 +175,8 @@ class Network(object):
 			#TODO ATM we're connecting to every peer we know of. That will make a lot of connections.
 			for peer in m.peers:
 				if peer not in peerList and peer not in unconfirmedList:
-
+					#TODO Add these peers to one of the lists
+					pass
 
 			# Alert the application to the new message
 			alert(message)
