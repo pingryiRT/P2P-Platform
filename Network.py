@@ -59,7 +59,9 @@ class Network(object):
 		"""
 
 		for alerter in self.alerters:
-			alerter(news)
+            # Start each alerter on its own thread in case a thread is long-running
+            Thread(target = alerter, args = (news,)).start()
+
 
 
 	def sender(self, contents, recipient = None):
@@ -99,7 +101,7 @@ class Network(object):
 
 		# Make the actual connection
 		connectTo(newPeer)
-		
+
 		# Give the caller a reference to the Peer we just created
 		return newPeer
 
