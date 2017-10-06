@@ -1,4 +1,5 @@
 from xml.etree import ElementTree as ET
+from P2PPlatform import Peer
 
 class Message:
     """
@@ -22,8 +23,15 @@ class Message:
         self.contents = ""
 
 
+    def __eq__(self, other):
+        return self.sender       == other.sender and \
+               self.recipient    == other.recipient and \
+               self.shuttingDown == other.shuttingDown and \
+               self.requestPeers == other.requestPeers and \
+               self.peers        == other.peers and \
+               self.contents     == other.contents
 
-    def toXML(self):
+    def to_xml(self):
         """
         Generate an XML representation of the Message.
 
@@ -32,29 +40,30 @@ class Message:
         """
 
         # Generate a The root element for the message
-        root = ET.Element('Message')
+        root = ET.Element('message')
 
         # Sender
-        sendElem = root.subElement('sender')
+        sendElem = ET.SubElement(root, 'sender')
         sendElem.text = self.sender.id
+        #TODO Include return address info (eg. server ip and port)
 
         # Recipient
-        recipElem = root.subElement('recipient')
+        recipElem = ET.SubElement(root, 'recipient')
         recipElem.text = self.recipient.id
 
         # Peer list
-        peersElem = root.subElement('peers')
+        peersElem = ET.SubElement(root, 'peers')
         for peer in self.peers:
-            currentPeerElem = peersElem.subElement('peer')
+            currentPeerElem = ET.SubElement(peersElem, 'peer')
             currentPeerElem.text = repr(peer)
 
         # Contents
         #TODO Consider appending a given element (rather than just a plain string)
         # Can be done according to https://stackoverflow.com/a/4789163/4184410
-        contentElem = root.subelement('contents')
+        contentElem = ET.SubElement(root, 'contents')
         contentElem.text = self.contents
 
-        return ET.dump(root)
+        return ET.tostring(root)
 
 
 
@@ -90,7 +99,7 @@ def message_from_xml(xml):
 
     # Parse the attached list of peers
     peersElem = root.find('peers')
-    for peerElem in root.peersElem.findall('peer'):
+    for peerElem in peersElem.findall('peer'):
         #TODO This is very bad and unsafe code. The Peer string needs to be sanitized first.
         # This might be a starting place: http://lybniz2.sourceforge.net/safeeval.html
         newPeer = eval(peerElem.text)
@@ -98,5 +107,7 @@ def message_from_xml(xml):
 
     # Fetch the primary contents
     m.contents = root.find('contents').text
+    if m.contents is None:
+      m.contents = ""
 
     return m

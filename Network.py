@@ -3,7 +3,8 @@ import select
 from threading import Thread, Timer
 from random import randint
 
-from Peer import Peer
+from .Peer import Peer
+from .Message import Message, message_from_xml
 
 class Network(object):
 	"""
@@ -25,6 +26,7 @@ class Network(object):
 		# Keep track of other network users
 		self.unconfirmedList = []
 		self.peerList = []
+		self.acquaintances = []
 
 		# Create infastructure for handling incoming messages
 		self.alerters = []
@@ -100,7 +102,7 @@ class Network(object):
 		#TODO Check whether this peer is already trying to connect to us
 
 		# Make the actual connection
-		connectTo(newPeer)
+		self.connectTo(newPeer)
 
 		# Give the caller a reference to the Peer we just created
 		return newPeer
@@ -113,26 +115,28 @@ class Network(object):
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			sock.connect((ip, port)) ### Is this a blocking call?
+			sock.connect((peer.ip, peer.port)) #TODO Is this a blocking call?
 		except socket.error:
 			alert("Failed to connect to {}".format(peer))
 
 		finally:
-			self.peerList.append(newPeer)
-			newPeer.socket = sock
+			self.peerList.append(peer)
+			peer.socket = sock
 			#self.alertOrStore(str(newPeer) + " connected.")
-			newPeer.send(self.port)
+			#newPeer.send(self.port)
 
 
 	def autoAcceptor(self):
 		"""
 		Automatically accepts incoming peer conncections, but leaves them in the unconfirmedList
-		where messages they attempt to send are not deserialized, and any messages sent by the
-		user will not be forwarded to them
+		where messages they attempt to send are not received, boxed, or passed along to applications,
+		and any outgoing messages will not be sent to them.
 		"""
 
-		clientSocket, clientAddress = self.server.accept()
-		thisPeer = Peer(clientAddress[0],Socket = clientSocket)
+		clientSocket, (clientIP, clientPort) = self.server.accept()
+		thisPeer = Peer(clientIP, clientPort)
+		thisPeer.server = clientSocket
+
 		if thisPeer not in self.unconfirmedList:
 			self.unconfirmedList.append(thisPeer)
 
@@ -175,32 +179,10 @@ class Network(object):
 			#TODO ATM we're connecting to every peer we know of. That will make a lot of connections.
 			for peer in m.peers:
 				if peer not in peerList and peer not in unconfirmedList:
-					#TODO Add these peers to one of the lists
-					pass
+					self.acquaintances.append(peer)
 
 			# Alert the application to the new message
 			alert(message)
-
-
-			'''
-			if type(message) is list:
-				messageStr = []
-				for peers in message:
-					messageStr.append(str(peers))
-				#self.alertOrStore("received peerlist: " + str(messageStr),peer = peers)
-			###########################################################
-
-			else:
-				for peers in list(self.peerList):
-					if peers.Sock == sockets:
-						if str(message) == "/exit":
-							peers.Sock = None
-							peers.hasSock = None
-							#self.alertOrStore(str(peers) + " exited.")
-						else:
-							self.alert(message)
-							self.box.append(message)
-			'''
 
 		# Queue the next autoReceiver
 		if self.autoPoll:
