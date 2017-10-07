@@ -8,7 +8,7 @@ class Peer(object):
 	id -- A unique identifier supplied in the sender field of every message
 	ip -- The IP address of the peer's server socket
 	port -- The port on which the peer's server socket runs
-	Socket -- defaults to None, but can (and should) be added for the socket of the peer
+	socket -- defaults to None, but can (and should) be added for the socket of the peer
 	name -- initialized as None, but can be added to give a peer a human-readable name
 
 	Peers are identified by their id and in future versions that ID will be a public key.
@@ -83,14 +83,7 @@ class Peer(object):
 		if self.socket is None:
 			raise Exception("Cannot send to peer without socket.")
 
-		try:
-			self.socket.send(message.toXML())
-
-		#TODO Is this really the Peer's own job, or should network take care of it.
-		except socket.error as e:
-			self.socket = None
-			raise e # Let the error propagate up to the caller so
-					# its records can be updated
+		self.socket.send(message.to_xml())
 
 
 	def receive(self):

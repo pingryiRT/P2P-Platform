@@ -1,5 +1,5 @@
 from xml.etree import ElementTree as ET
-from P2PPlatform import Peer
+from P2PPlatform.Peer import Peer
 
 class Message:
     """
@@ -44,12 +44,14 @@ class Message:
 
         # Sender
         sendElem = ET.SubElement(root, 'sender')
-        sendElem.text = self.sender.id
-        #TODO Include return address info (eg. server ip and port)
+        if self.sender is not None:
+            sendElem.text = self.sender.id
+            #TODO Include return address info (eg. server ip and port)
 
         # Recipient
         recipElem = ET.SubElement(root, 'recipient')
-        recipElem.text = self.recipient.id
+        if self.recipient is not None:
+            recipElem.text = self.recipient.id
 
         # Peer list
         peersElem = ET.SubElement(root, 'peers')

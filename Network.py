@@ -21,7 +21,7 @@ class Network(object):
 		self.autoPoll = autoPoll
 		self.ip = ip
 		self.port = port
-		self.id = hash(randint(0,100000)) #TODO Use keys for this!
+		self.id = str(hash(randint(0,100000))) #TODO Use keys for this!
 
 		# Keep track of other network users
 		self.unconfirmedList = []
@@ -83,8 +83,10 @@ class Network(object):
 		for peer in list(self.peerList): # Makes a copy
 			if peer.socket is not None:
 				try:
-					peer.send(message)
-				except:
+					peer.send(m)
+				except socket.error as e:
+					print("Error message is {}".format(e))
+					peer.socket = None
 					self.peerList.remove(peer)
 					self.acquaintances.append(peer)
 
@@ -135,7 +137,7 @@ class Network(object):
 
 		clientSocket, (clientIP, clientPort) = self.server.accept()
 		thisPeer = Peer(clientIP, clientPort)
-		thisPeer.server = clientSocket
+		thisPeer.socket = clientSocket
 
 		if thisPeer not in self.unconfirmedList:
 			self.unconfirmedList.append(thisPeer)
@@ -160,7 +162,12 @@ class Network(object):
 		"""
 
 		# Figure out who we're receiving from
-		sockList = [p.socket for p in self.peerList]
+		sockList=[]
+		for peer in self.peerList:
+			if peer.socket is not None:
+				sockList.append(peer.socket)
+
+		# Do the actual receiving
 		receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],2)#kind of bad,
 			# but I don't currently need to check for writable/errors... if I need to I will later
 			# timeout is in 2 seconds
@@ -182,7 +189,8 @@ class Network(object):
 					self.acquaintances.append(peer)
 
 			# Alert the application to the new message
-			alert(message)
+			print("Received Message: " + m.contents + ". About to call alerter.")
+			self.alert(m)
 
 		# Queue the next autoReceiver
 		if self.autoPoll:
@@ -196,8 +204,6 @@ class Network(object):
 
 		# Cancel all current and future autoPoll operations
 		self.autoPoll = False
-		if self.acceptorThread is not None:
-				self.acceptorThread.cancel()
 		if self.receiverThread is not None:
 				self.receiverThread.cancel()
 
@@ -206,8 +212,6 @@ class Network(object):
 
 		# Close all peer sockets
 		for peer in self.peerList:
-			if peer.hasSock:
-				peer.hasSock = False # Doing this before to try to prevent an error
-				# peers.send() need to send something to initiate shutdown
-				peer.Sock.shutdown(socket.SHUT_RDWR)
-				peer.Sock.close()
+			if peer.socket is not None:
+				peer.socket.shutdown(socket.SHUT_RDWR)
+				peer.socket.close()
