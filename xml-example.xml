@@ -1,0 +1,19 @@
+<message signedhash="1524512451234524351">
+
+  <sender ip="10.12.12.87", port="5654">ebegeqr</sender>
+  <recipient>rregqervqer</recipient>
+  <!-- ids 'anonysmous', and 'network' should maybe be reserved? -->
+
+  <shuttingdown />
+  <requestpeers />
+
+  <peers>
+    <peer>Peer('dvasdvs', '192.168.34.4', 4546)</peer>
+    <peer>Peer('iposdajc', '110.15.3.14', 4443)</peer>
+  </peers>
+
+  <contents>
+    Hey Dude, what's up?
+  </contents>
+
+</message>
