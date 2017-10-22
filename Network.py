@@ -189,7 +189,6 @@ class Network(object):
 					self.acquaintances.append(peer)
 
 			# Alert the application to the new message
-			print("Received Message: " + m.contents + ". About to call alerter.")
 			self.alert(m)
 
 		# Queue the next autoReceiver
