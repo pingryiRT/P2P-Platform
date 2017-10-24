@@ -39,8 +39,10 @@ class Network(object):
 
 		# Start the autoPolling if appropriate
 		if self.autoPoll:
-			self.acceptorThread = Timer(1, self.autoAcceptor)
+			self.acceptorThread = Thread(target = self.autoAcceptor)	
 			self.receiverThread = Thread(target = self.autoReceiver)
+			self.acceptorThread.setDaemon(True)
+			self.receiverThread.setDaemon(True)
 			self.acceptorThread.start()
 			self.receiverThread.start()
 		else:
@@ -135,18 +137,13 @@ class Network(object):
 		where messages they attempt to send are not received, boxed, or passed along to applications,
 		and any outgoing messages will not be sent to them.
 		"""
+		while self.autoPoll:
+			clientSocket, (clientIP, clientPort) = self.server.accept()
+			thisPeer = Peer(clientIP, clientPort)
+			thisPeer.socket = clientSocket
 
-		clientSocket, (clientIP, clientPort) = self.server.accept()
-		thisPeer = Peer(clientIP, clientPort)
-		thisPeer.socket = clientSocket
-
-		if thisPeer not in self.unconfirmedList:
-			self.unconfirmedList.append(thisPeer)
-
-		# Queue the next autoAcceptor
-		if self.autoPoll:
-			self.acceptorThread = Thread(target = self.autoAcceptor)
-			self.acceptorThread.start()
+			if thisPeer not in self.unconfirmedList:
+				self.unconfirmedList.append(thisPeer)
 
 	def approve(self, peer):
 		"""
@@ -161,48 +158,44 @@ class Network(object):
 		"""
 		Goes through all peers, attempting to receive messages when sockets exist.
 		"""
+		while self.autoPoll:
+			# Figure out who we're receiving from
+			sockList=[]
+			for peer in self.peerList:
+				if peer.socket is not None:
+					sockList.append(peer.socket)
 
-		# Figure out who we're receiving from
-		sockList=[]
-		for peer in self.peerList:
-			if peer.socket is not None:
-				sockList.append(peer.socket)
+			# Do the actual receiving
+			receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],0)#kind of bad,
+				# but I don't currently need to check for writable/errors... if I need to I will later
+				# timeout is in 2 seconds
 
-		# Do the actual receiving
-		receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],0)#kind of bad,
-			# but I don't currently need to check for writable/errors... if I need to I will later
-			# timeout is in 2 seconds
+			#TODO should we be moving peers with socket errors discovered here to the acquaintances list?
 
-		#TODO should we be moving peers with socket errors discovered here to the acquaintances list?
+			for sockets in receiveOpen:
+				if sockets != None:
+					rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
+					m = message_from_xml(rawXML)
+					if m.contents == "/exit":
+						for peer in self.peerList:
+							if peer.socket == sockets:
+								peer.socket = None
+								self.peerList.remove(peer)
+								self.acquaintances.append(peer)
+				#TODO If sender is shutting down, disconnect, say goodbye, etc
 
-		for sockets in receiveOpen:
-			if sockets != None:
-				rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
-				m = message_from_xml(rawXML)
-				if m.contents == "/exit":
-					for peer in self.peerList:
-						if peer.socket == sockets:
-							peer.socket = None
-							self.peerList.remove(peer)
-							self.acquaintances.append(peer)
-			#TODO If sender is shutting down, disconnect, say goodbye, etc
+				#TODO If sender is requesting Peers, send some
 
-			#TODO If sender is requesting Peers, send some
-
-			# If we want more peers, connect to some
-			#TODO ATM we're connecting to every peer we know of. That will make a lot of connections.
-			for peer in m.peers:
-				if peer not in peerList and peer not in unconfirmedList:
-					self.acquaintances.append(peer)
+				# If we want more peers, connect to some
+				#TODO ATM we're connecting to every peer we know of. That will make a lot of connections.
+				for peer in m.peers:
+					if peer not in peerList and peer not in unconfirmedList:
+						self.acquaintances.append(peer)
 			
 				
-			# Alert the application to the new message
-			self.alert(m)
+				# Alert the application to the new message
+				self.alert(m)
 
-		# Queue the next autoReceiver
-		if self.autoPoll:
-			self.receiverThread = Timer(1, self.autoReceiver)
-			self.receiverThread.start()
 
 	def shutdown(self):
 		""" Gracefully closes down all sockets for this peer. """
@@ -211,8 +204,6 @@ class Network(object):
 
 		# Cancel all current and future autoPoll operations
 		self.autoPoll = False
-		if self.receiverThread is not None:
-				self.receiverThread.cancel()
 
 		# Colse our own server socket
 		self.server.close()
@@ -222,5 +213,4 @@ class Network(object):
 			if peer.socket is not None:
 				peer.socket.shutdown(socket.SHUT_RDWR)
 				peer.socket.close()
-				print("closing socket")
 				peer.socket = None
