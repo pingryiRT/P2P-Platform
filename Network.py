@@ -178,7 +178,12 @@ class Network(object):
 		for sockets in receiveOpen:
 			rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
 			m = message_from_xml(rawXML)
-
+			if m.contents == "/exit":
+				for peer in self.peerList:
+					if peer.socket == sockets:
+						peer.socket = None
+						self.peerList.remove(peer)
+						self.acquaintances.append(peer)
 			#TODO If sender is shutting down, disconnect, say goodbye, etc
 
 			#TODO If sender is requesting Peers, send some
@@ -188,7 +193,8 @@ class Network(object):
 			for peer in m.peers:
 				if peer not in peerList and peer not in unconfirmedList:
 					self.acquaintances.append(peer)
-
+			
+				
 			# Alert the application to the new message
 			self.alert(m)
 
