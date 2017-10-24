@@ -169,21 +169,22 @@ class Network(object):
 				sockList.append(peer.socket)
 
 		# Do the actual receiving
-		receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],2)#kind of bad,
+		receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],0)#kind of bad,
 			# but I don't currently need to check for writable/errors... if I need to I will later
 			# timeout is in 2 seconds
 
 		#TODO should we be moving peers with socket errors discovered here to the acquaintances list?
 
 		for sockets in receiveOpen:
-			rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
-			m = message_from_xml(rawXML)
-			if m.contents == "/exit":
-				for peer in self.peerList:
-					if peer.socket == sockets:
-						peer.socket = None
-						self.peerList.remove(peer)
-						self.acquaintances.append(peer)
+			if sockets != None:
+				rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
+				m = message_from_xml(rawXML)
+				if m.contents == "/exit":
+					for peer in self.peerList:
+						if peer.socket == sockets:
+							peer.socket = None
+							self.peerList.remove(peer)
+							self.acquaintances.append(peer)
 			#TODO If sender is shutting down, disconnect, say goodbye, etc
 
 			#TODO If sender is requesting Peers, send some
@@ -221,3 +222,5 @@ class Network(object):
 			if peer.socket is not None:
 				peer.socket.shutdown(socket.SHUT_RDWR)
 				peer.socket.close()
+				print("closing socket")
+				peer.socket = None
