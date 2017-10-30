@@ -22,6 +22,7 @@ class Network(object):
 		self.ip = ip
 		self.port = port
 		self.id = str(hash(randint(0,100000))) #TODO Use keys for this!
+		self.me = Peer(self.id, self.ip, self.port)
 
 		# Keep track of other network users
 		self.unconfirmedList = []
@@ -77,8 +78,7 @@ class Network(object):
 		the message is considered a public broadcast.
 		"""
 
-		me = Peer(self.id, self.ip, self.port)
-		m = Message(me)
+		m = Message(self.me)
 		m.contents = contents
 		m.recipient = recipient
 
@@ -166,9 +166,7 @@ class Network(object):
 					sockList.append(peer.socket)
 
 			# Do the actual receiving
-			receiveOpen,writeOpen,errorSocks = select.select(sockList,[],[],0)#kind of bad,
-				# but I don't currently need to check for writable/errors... if I need to I will later
-				# timeout is in 2 seconds
+			receiveOpen, writeOpen, errorSocks = select.select(sockList, [], [], 0)
 
 			#TODO should we be moving peers with socket errors discovered here to the acquaintances list?
 
@@ -176,13 +174,15 @@ class Network(object):
 				if sockets != None:
 					rawXML = sockets.recv(4096) #DO NOT BELIEVE THIS IS USED IN THIS MANUAL VERSION
 					m = message_from_xml(rawXML)
-					if m.contents == "/exit":
+
+					# If sender is shutting down, disconnect
+					if m.shuttingDown:
 						for peer in self.peerList:
 							if peer.socket == sockets:
 								peer.socket = None
 								self.peerList.remove(peer)
 								self.acquaintances.append(peer)
-				#TODO If sender is shutting down, disconnect, say goodbye, etc
+
 
 				#TODO If sender is requesting Peers, send some
 
@@ -191,8 +191,8 @@ class Network(object):
 				for peer in m.peers:
 					if peer not in peerList and peer not in unconfirmedList:
 						self.acquaintances.append(peer)
-			
-				
+
+
 				# Alert the application to the new message
 				self.alert(m)
 
@@ -200,17 +200,19 @@ class Network(object):
 	def shutdown(self):
 		""" Gracefully closes down all sockets for this peer. """
 
-		#TODO Inform peers that we're shutting down
-
-		# Cancel all current and future autoPoll operations
-		self.autoPoll = False
-
-		# Colse our own server socket
+		# Close our own server socket
 		self.server.close()
+
+		# Generate a goodbye message
+		bye = Message(self.me)
+		bye.shuttingDown = True
 
 		# Close all peer sockets
 		for peer in self.peerList:
-			if peer.socket is not None:
-				peer.socket.shutdown(socket.SHUT_RDWR)
-				peer.socket.close()
-				peer.socket = None
+			peer.send(bye)
+			peer.socket.shutdown(socket.SHUT_RDWR)
+			peer.socket.close()
+			peer.socket = None
+
+		# Cancel all future autoPoll operations
+		self.autoPoll = False
