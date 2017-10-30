@@ -26,7 +26,7 @@ class MessageTests(TestCase):
 
   def testToXml(self):
     xml = self.m.to_xml()
-    correct = "<message><sender>AliceID</sender><recipient>BobID</recipient><peers /><contents /></message>"
+    correct = b"<message><sender>AliceID</sender><recipient>BobID</recipient><peers /><contents /></message>"
     self.assertEqual(xml, correct)
 
   def testXmlAndBack(self):
