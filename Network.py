@@ -1,7 +1,8 @@
 import socket
 import select
-from threading import Thread, Timer
+from threading import Thread
 from random import randint
+from time import sleep
 
 from .Peer import Peer
 from .Message import Message, message_from_xml
@@ -39,8 +40,9 @@ class Network(object):
 		self.server.listen(2) # 2 simultaneous connections in backlog
 
 		# Start the autoPolling if appropriate
+		self.pollDelay = 0.3 # seconds
 		if self.autoPoll:
-			self.acceptorThread = Thread(target = self.autoAcceptor)	
+			self.acceptorThread = Thread(target = self.autoAcceptor)
 			self.receiverThread = Thread(target = self.autoReceiver)
 			self.acceptorThread.setDaemon(True)
 			self.receiverThread.setDaemon(True)
@@ -137,13 +139,20 @@ class Network(object):
 		where messages they attempt to send are not received, boxed, or passed along to applications,
 		and any outgoing messages will not be sent to them.
 		"""
+
 		while self.autoPoll:
+
+			# Unconditionally accept the incoming request
 			clientSocket, (clientIP, clientPort) = self.server.accept()
 			thisPeer = Peer(clientIP, clientPort)
 			thisPeer.socket = clientSocket
 
+			# Add peer to list of unconfirmed connection attempts
 			if thisPeer not in self.unconfirmedList:
 				self.unconfirmedList.append(thisPeer)
+
+			# Wait for the next poll
+			sleep(self.pollDelay)
 
 	def approve(self, peer):
 		"""
@@ -158,6 +167,7 @@ class Network(object):
 		"""
 		Goes through all peers, attempting to receive messages when sockets exist.
 		"""
+
 		while self.autoPoll:
 			# Figure out who we're receiving from
 			sockList=[]
@@ -195,6 +205,9 @@ class Network(object):
 
 				# Alert the application to the new message
 				self.alert(m)
+
+			# Wait for the next poll
+			sleep(self.pollDelay)
 
 
 	def shutdown(self):
