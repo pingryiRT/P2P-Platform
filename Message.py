@@ -53,6 +53,15 @@ class Message:
         if self.recipient is not None:
             recipElem.text = self.recipient.id
 
+        # Shutting down
+        if self.shuttingDown:
+            shutdownElem = ET.SubElement(root, 'shuttingdown')
+
+        # Requesting peers
+        if self.requestPeers:
+            requestElem = ET.SubElement(root, 'requestpeers')
+
+
         # Peer list
         peersElem = ET.SubElement(root, 'peers')
         for peer in self.peers:
@@ -96,7 +105,7 @@ def message_from_xml(xml):
     m.recipient = Peer(recipientID)
 
     # Shutting down or requesting peers?
-    m.shuttingdown = root.find('shuttingdown') is not None
+    m.shuttingDown = root.find('shuttingdown') is not None
     m.requestPeers = root.find('requestpeers') is not None
 
     # Parse the attached list of peers

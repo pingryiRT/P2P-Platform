@@ -42,3 +42,11 @@ class MessageTests(TestCase):
     print(self.m.peers        == n.peers)
     print(self.m.contents     == n.contents)
     '''
+
+  def testShutdownDeserialized(self):
+      m = message_from_xml("<message><sender>AliceID</sender><recipient>BobID</recipient><shuttingdown /><peers /><contents /></message>")
+      self.assertTrue(m.shuttingDown)
+
+  def testShutdownSerialized(self):
+      self.m.shuttingDown = True
+      self.assertIn(b"<shuttingdown />", self.m.to_xml())
