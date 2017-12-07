@@ -67,7 +67,7 @@ class Network(object):
 
 		for alerter in self.alerters:
 			# Start each alerter on its own thread in case a thread is long-running
-			Thread(target = alerter, args = (news,)).start()
+			Thread(target = alerter.update, args = (news,)).start()
 
 
 
